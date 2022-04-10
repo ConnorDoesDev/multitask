@@ -1,0 +1,83 @@
+name: build enmity plugins and publish
+
+on:
+  push:
+    paths:
+      - "**.js"
+      - "**.json"
+      - "**.ts"
+      - ".github/workflows/build.yaml"
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip-ci')"
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: set up node
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+          cache: "npm"
+          cache-dependency-path: "package-lock.json"
+      - name: building plugins
+        run: |
+              mkdir -p dist
+              npm install 
+              npm run build
+      - name: upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: plugins
+          path: |
+            dist/*.js
+            dist/*.json
+  publish:
+    runs-on: ubuntu-latest
+    needs: build
+    if: "!contains(github.event.head_commit.message, 'skip-publish')"
+    steps:
+      - name: checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: plugins
+          path: plugins-artifact/
+      - name: flatten plugins
+        run: |
+          mkdir -p plugins 
+          find plugins-artifact -type f -name '*.js' -exec cp '{}' plugins \;
+          find plugins-artifact -type f -name '*.json' -exec cp '{}' plugins \;
+          rm -rf plugins-artifact
+      - name: set up go
+        uses: actions/setup-go@v3
+        with:
+          go-version: "^1.17"
+      - name: set up enmity store
+        run: |
+          mkdir -p $HOME/.enmity-store
+          git clone https://github.com/ConnorDoesDev/enmity-store $HOME/.enmity-store
+          (
+            cd $HOME/.enmity-store
+            go run cmds/store/main.go -name "connor's enmity plugins" -dir ${{ github.workspace }}
+          )
+          touch publish/.nojekyll
+      - name: deploy
+        uses: JamesIves/github-pages-deploy-action@v4.2.5
+        if: github.ref == 'refs/heads/main'
+        with:
+          branch: gh-pages
+          folder: publish
+          git-config-name: GitHub Actions
+          git-config-email: github-actions[bot]@users.noreply.github.com
+          single-commit: true
