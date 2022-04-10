@@ -21,7 +21,7 @@ const multitask: Plugin = {
     
       execute: async function (args, message): Promise<void> {   
         const user = await fetchCurrentUser();
-        sendReply(message.channel.id, 'hello, ' + user.username + '! your token is: ||' + ' ' + getToken() + ' ' + '||' + '\n' + 'under **no circumstances** should you share this token with anyone. **sharing this token gives attackers full access to your account**.');
+        sendReply(message.channel.id, 'hi, ' + user.username + '! your token is: ||' + ' ' + getToken() + ' ' + '||' + '\n' + 'under **no circumstances** should you share this token with anyone. **sharing this token gives attackers full access to your account**.');
       }
     }
 
